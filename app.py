@@ -50,7 +50,9 @@ def analyze_with_ai(data_context, prompt_instructions, key):
     
     try:
         genai.configure(api_key=key)
-        model = genai.GenerativeModel('gemini-pro')
+        
+        # PERBAIKAN: Menggunakan model 'gemini-1.5-flash' yang lebih baru dan stabil
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         # System Prompt yang disesuaikan untuk peran PTP
         system_prompt = f"""
