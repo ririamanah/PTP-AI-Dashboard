@@ -10,191 +10,187 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- FUNGSI AUTH API (Otomatis baca Secrets atau Input Manual) ---
+# --- FUNGSI AUTH API ---
 def configure_api():
-    # Coba ambil dari Streamlit Secrets (untuk Cloud)
     if "GOOGLE_API_KEY" in st.secrets:
         return st.secrets["GOOGLE_API_KEY"]
     else:
-        # Jika dijalankan di laptop (lokal), minta input manual
         return st.sidebar.text_input("🔑 Masukkan Google AI API Key", type="password")
 
-# --- HEADER & JUDUL APLIKASI ---
+# --- HEADER ---
 st.title("🚀 PTP AI Dashboard")
 st.markdown("""
 **Sistem Analisis Cerdas Pengembang Teknologi Pembelajaran (PTP)**  
 *Pusdiklat Anggaran dan Perbendaharaan*
 """)
-st.info("Aplikasi ini menggunakan **Artificial Intelligence** untuk menerjemahkan data pelatihan menjadi wawasan pedagogis berdasarkan teori *Behaviorism, Cognitivism, & Constructivism*.")
+st.info("Sistem ini mengintegrasikan **Learning Analytics** dengan **Standar Kompetensi JF PTP (PermenPANRB No. 3 Tahun 2021)**.")
 
-# --- SIDEBAR KONFIGURASI ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ Konfigurasi Sistem")
     api_key = configure_api()
     
     st.divider()
     st.header("📂 Upload Data Pelatihan")
-    st.warning("Pastikan format file CSV (Delimiter titik koma ';')")
+    st.warning("Format: CSV (Delimiter titik koma ';')")
     
-    # Uploaders
     file_profil = st.file_uploader("1. Data Profil Peserta (Demografi)", type=['csv'])
     file_quiz = st.file_uploader("2. Data Nilai/Kuis (Evaluasi)", type=['csv'])
-    file_progress = st.file_uploader("3. Data Progress (Aktivitas Belajar)", type=['csv'])
+    file_progress = st.file_uploader("3. Data Progress (Aktivitas)", type=['csv'])
     
-    st.caption("Developed by PTP Team based on UCL Learning Framework")
+    st.caption("Updated with PTP Competency Standards")
 
-# --- FUNGSI OTAK AI (GEMINI) ---
+# --- DATABASE KOMPETENSI PTP (HARDCODED) ---
+# Ini adalah "Knowledge Base" tambahan untuk AI berdasarkan dokumen Anda
+ptp_competency_standards = """
+REFERENSI STANDAR KOMPETENSI PTP (Analisis Kebutuhan - PermenPANRB No 3 Tahun 2021):
+
+1. PTP Ahli Pertama (Fokus: MEDIA PEMBELAJARAN):
+   - Mampu melakukan analisis kebutuhan pengembangan media pembelajaran melalui proses sistematis dengan dukungan konsep teori yang relevan.
+   - Mampu merekomendasikan hasil analisis kebutuhan sebagai dasar pengembangan media pembelajaran.
+
+2. PTP Ahli Muda (Fokus: HYPERMEDIA PEMBELAJARAN):
+   - Mampu menganalisis dan mengkaji kebutuhan pengembangan hypermedia pembelajaran melalui proses sistematis dengan dukungan konsep teori yang relevan.
+   - Mampu merekomendasikan hasil analisis kebutuhan sebagai dasar pengembangan hypermedia.
+   - Mampu melakukan studi kelayakan pengembangan hypermedia sesuai prosedur.
+
+3. PTP Ahli Madya (Fokus: MODEL E-LEARNING & APLIKASI):
+   - Mampu menganalisis dan mengkaji kebutuhan pengembangan model dan aplikasi e-pembelajaran.
+   - Mampu membuat rekomendasi dari hasil analisis data kebutuhan pengembangan model dan aplikasi e-pembelajaran.
+   - Mampu memimpin studi kelayakan pengembangan model dan aplikasi e-pembelajaran sesuai tahapan dan landasan teori.
+
+4. PTP Ahli Utama (Fokus: MODEL KOMPLEKS, INOVASI & KEBIJAKAN):
+   - Melakukan analisis kebutuhan sesuai pengetahuan komprehensif tentang isu publik, kebijakan program, dan peraturan terkait pengembangan model pembelajaran kompleks dan inovasi teknologi.
+   - Merekomendasikan hasil analisis kebutuhan sebagai dasar pengembangan model pembelajaran kompleks dan inovasi yang dapat digunakan untuk membuat kebijakan.
+"""
+
+# --- FUNGSI OTAK AI ---
 def analyze_with_ai(data_context, prompt_instructions, key):
     if not key:
-        return "⚠️ Error: API Key belum terdeteksi. Mohon masukkan key di sidebar."
+        return "⚠️ Error: API Key belum terdeteksi."
     
     try:
         genai.configure(api_key=key)
-        
-        # PERBAIKAN: Menggunakan model 'gemini-1.5-flash' yang lebih baru dan stabil
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # System Prompt yang disesuaikan untuk peran PTP
+        # System Prompt yang diperkaya dengan Standar Kompetensi
         system_prompt = f"""
         PERAN:
-        Anda adalah Asisten Cerdas untuk Pengembang Teknologi Pembelajaran (PTP) di Kementerian Keuangan.
-        Tugas Anda adalah menganalisis data pelatihan untuk memberikan rekomendasi perbaikan desain pembelajaran.
+        Anda adalah Konsultan Senior Pengembangan Teknologi Pembelajaran di Kemenkeu.
+        Anda bekerja berpedoman pada Teori Belajar (UCL) dan Standar Kompetensi Jabatan Fungsional PTP (PermenPANRB).
 
-        KONTEKS DATA (Sampel):
+        KONTEKS DATA PELATIHAN (Sampel):
         {data_context}
 
-        INSTRUKSI KHUSUS:
+        REFERENSI KOMPETENSI PTP (Gunakan ini untuk membagi tugas rekomendasi):
+        {ptp_competency_standards}
+
+        INSTRUKSI TUGAS:
         {prompt_instructions}
 
-        PANDUAN TEORI BELAJAR (UCL Framework):
-        1. Behaviorism: Analisis pola kebiasaan (durasi akses, frekuensi login) dan hubungannya dengan hasil (nilai).
-        2. Cognitivism: Identifikasi beban kognitif (cognitive load). Apakah materi terlalu sulit/mudah?
-        3. Social Constructivism: (Jika ada data diskusi) Analisis kolaborasi. Jika tidak, fokus pada konteks demografi peserta.
-
-        OUTPUT:
-        Berikan jawaban dalam Bahasa Indonesia yang formal, analitis, dan langsung pada poin rekomendasi (actionable insights).
+        ATURAN JAWABAN:
+        1. Analisis data menggunakan teori belajar (Behaviorism/Cognitivism).
+        2. SAAT MEMBERIKAN REKOMENDASI DESAIN, petakan solusi berdasarkan jenjang PTP.
+           Contoh: "Data menunjukkan nilai rendah di materi visual. 
+           - Rekomendasi untuk PTP Pertama: Perbaiki aset media video.
+           - Rekomendasi untuk PTP Madya: Evaluasi ulang model e-learning yang digunakan."
+        3. Gunakan Bahasa Indonesia formal dan profesional.
         """
         
-        with st.spinner('🤖 Asisten PTP sedang menganalisis data...'):
+        with st.spinner('🤖 AI sedang memetakan data ke Standar Kompetensi PTP...'):
             response = model.generate_content(system_prompt)
         return response.text
         
     except Exception as e:
         return f"Terjadi kesalahan pada AI: {str(e)}"
 
-# --- LOGIKA UTAMA DASHBOARD ---
+# --- LOGIKA DASHBOARD ---
 if file_profil and file_quiz and file_progress:
     try:
-        # 1. Loading Data
+        # Load & Clean Data
         df_profil = pd.read_csv(file_profil, sep=';')
         df_quiz = pd.read_csv(file_quiz, sep=';')
         df_progress = pd.read_csv(file_progress, sep=';')
 
-        # Cleaning Nama Kolom (menghapus spasi berlebih)
         for df in [df_profil, df_quiz, df_progress]:
             df.columns = df.columns.str.strip()
 
-        # Notifikasi Sukses
-        st.success(f"✅ Data Pelatihan Berhasil Dimuat! Total Peserta: {len(df_profil)} orang.")
+        st.success(f"✅ Data Siap. Total Peserta: {len(df_profil)}")
 
-        # 2. Overview Dashboard (Visualisasi Statistik)
-        st.subheader("📊 Ringkasan Statistik Pelatihan")
-        
-        col1, col2, col3 = st.columns(3)
+        # Dashboard Statistik
+        st.subheader("📊 Statistik Utama")
+        col1, col2 = st.columns(2)
         
         with col1:
-            st.metric("Total Peserta", len(df_profil))
-        
-        with col2:
-            # Mencari kolom nilai secara dinamis
-            nilai_cols = [c for c in df_quiz.columns if 'Quiz' in c or 'Nilai' in c or 'Score' in c]
+            nilai_cols = [c for c in df_quiz.columns if 'Quiz' in c or 'Nilai' in c]
             if nilai_cols:
-                rata_rata = df_quiz[nilai_cols].mean().mean()
-                st.metric("Rata-rata Nilai Kelas", f"{rata_rata:.2f}")
+                rata_total = df_quiz[nilai_cols].mean().mean()
+                st.metric("Rata-rata Nilai", f"{rata_total:.2f}")
+                st.bar_chart(df_quiz[nilai_cols].mean())
             else:
                 st.warning("Kolom Nilai tidak ditemukan")
 
-        with col3:
-            # Mencari kolom durasi
-            durasi_cols = [c for c in df_progress.columns if 'Duration' in c or 'Durasi' in c]
-            if durasi_cols:
-                # Konversi durasi sederhana (asumsi data string jam:menit:detik)
-                st.metric("Total Kolom Durasi Terlacak", len(durasi_cols))
-            else:
-                st.write("Data durasi detail tersedia")
-
-        # 3. Grafik Cepat
-        col_g1, col_g2 = st.columns(2)
-        
-        with col_g1:
-            st.markdown("##### Sebaran Demografi (Jabatan)")
+        with col2:
+            st.markdown("**Sebaran Jabatan Peserta**")
             if 'POSITION' in df_profil.columns:
                 st.bar_chart(df_profil['POSITION'].value_counts().head(5))
             elif 'Jabatan' in df_profil.columns:
                 st.bar_chart(df_profil['Jabatan'].value_counts().head(5))
-                
-        with col_g2:
-            st.markdown("##### Tren Nilai Per Modul/Kuis")
-            if nilai_cols:
-                st.line_chart(df_quiz[nilai_cols].mean())
 
-        # 4. FITUR PTP INTELLIGENCE (AI Analysis)
+        # --- FITUR AI ---
         st.divider()
-        st.header("🧠 PTP Intelligence: Analisis Pedagogis")
-        st.markdown("Pilih jenis analisis yang ingin Anda lakukan terhadap data pelatihan ini:")
-
-        # Menyiapkan Data Context (Mengambil sampel data untuk dikirim ke AI agar token efisien)
-        # Menggabungkan data profil, nilai, dan progress (hanya 15 baris pertama sebagai sampel pola)
+        st.header("🧠 Analisis & Rekomendasi Berbasis Kompetensi")
+        
+        # Penyiapan Data String
         data_preview = (
-            "--- DATA PROFIL ---\n" + df_profil.head(10).to_csv(index=False) + 
-            "\n\n--- DATA NILAI ---\n" + df_quiz.head(10).to_csv(index=False) +
-            "\n\n--- DATA PROGRESS ---\n" + df_progress.head(10).to_csv(index=False)
+            "PROFIL (Sampel):\n" + df_profil.head(10).to_csv(index=False) + 
+            "\n\nNILAI (Sampel):\n" + df_quiz.head(10).to_csv(index=False) +
+            "\n\nPROGRESS (Sampel):\n" + df_progress.head(10).to_csv(index=False)
         )
 
-        col_ai1, col_ai2 = st.columns([1, 2])
+        col_input, col_output = st.columns([1, 2])
 
-        with col_ai1:
-            option = st.radio(
-                "Pilih Fokus Analisis:",
+        with col_input:
+            st.markdown("### Pilih Fokus Analisis")
+            mode_analisis = st.radio(
+                "Jenis Laporan:",
                 (
-                    "🔍 Audit Performa (General)", 
-                    "⚠️ Deteksi 'At-Risk' (Peserta Berisiko)", 
-                    "🧠 Analisis Beban Kognitif (Materi)",
-                    "💡 Rekomendasi Desain Pembelajaran"
+                    "📄 Laporan Analisis Kebutuhan (Needs Analysis)",
+                    "💡 Rekomendasi Desain Pembelajaran (Competency Based)",
+                    "⚠️ Deteksi Masalah Pembelajaran"
                 )
             )
             
-            if st.button("Mulai Analisis AI", type="primary"):
-                # Menentukan Prompt berdasarkan pilihan
-                if "General" in option:
-                    prompt = "Berikan analisis menyeluruh tentang efektivitas pelatihan ini. Hubungkan profil peserta dengan hasil nilai mereka."
-                elif "At-Risk" in option:
-                    prompt = "Identifikasi pola peserta yang memiliki nilai rendah atau aktivitas belajar yang tidak wajar. Apakah ada indikasi 'cramming' (belajar kebut semalam)? Siapa kelompok yang paling butuh intervensi?"
-                elif "Beban Kognitif" in option:
-                    prompt = "Analisis data durasi dan nilai. Apakah materi yang diakses paling lama menghasilkan nilai yang lebih baik (efektif) atau justru nilai rendah (terlalu sulit/membingungkan)?"
+            if st.button("Generate Analisis AI 🚀"):
+                if mode_analisis == "Laporan Analisis Kebutuhan (Needs Analysis)":
+                    prompt = """
+                    Lakukan analisis kebutuhan pembelajaran (Learning Needs Analysis) berdasarkan data nilai dan perilaku peserta.
+                    Identifikasi kesenjangan (gap) kompetensi yang terlihat dari data.
+                    Apakah materi saat ini relevan dengan profil jabatan peserta?
+                    Sebutkan peran PTP Ahli Pertama dan Muda dalam menindaklanjuti data ini.
+                    """
+                elif mode_analisis == "Rekomendasi Desain Pembelajaran (Competency Based)":
+                    prompt = """
+                    Berikan rekomendasi perbaikan desain pembelajaran yang konkret.
+                    WAJIB membagi rekomendasi berdasarkan jenjang PTP:
+                    1. Apa yang harus diperbaiki pada aspek MEDIA (Tugas PTP Pertama)?
+                    2. Apa yang harus diperbaiki pada aspek HYPERMEDIA/Interaktivitas (Tugas PTP Muda)?
+                    3. Apa yang harus dievaluasi pada MODEL E-LEARNING (Tugas PTP Madya)?
+                    4. Apakah ada rekomendasi KEBIJAKAN/INOVASI (Tugas PTP Utama)?
+                    """
                 else:
-                    prompt = "Sebagai PTP, berikan 3 rekomendasi konkret untuk perbaikan kurikulum pelatihan berikutnya berdasarkan data ini."
+                    prompt = """
+                    Identifikasi masalah kritis dalam pelatihan ini (misal: SKS, nilai rendah, drop-out).
+                    Analisis menggunakan teori Kognitivisme (beban kognitif).
+                    Berikan solusi berjenjang dari sisi teknis (media) hingga strategis (kebijakan).
+                    """
                 
-                # Eksekusi AI
-                hasil_analisis = analyze_with_ai(data_preview, prompt, api_key)
-                
-                # Simpan hasil di session state agar tidak hilang saat reload
-                st.session_state['hasil_ai'] = hasil_analisis
+                hasil = analyze_with_ai(data_preview, prompt, api_key)
+                st.session_state['hasil_ptp'] = hasil
 
-        with col_ai2:
-            st.markdown("### Hasil Analisis:")
-            if 'hasil_ai' in st.session_state:
-                st.markdown(st.session_state['hasil_ai'])
+        with col_output:
+            st.markdown("### Hasil Analisis AI:")
+            if 'hasil_ptp' in st.session_state:
+                st.markdown(st.session_state['hasil_ptp'])
             else:
-                st.info("👈 Klik tombol 'Mulai Analisis AI' untuk melihat wawasan dari data.")
-
-    except Exception as e:
-        st.error(f"Gagal memproses file. Pesan Error: {e}")
-        st.warning("Tips: Pastikan file yang diupload adalah CSV dengan pemisah titik koma (;).")
-
-else:
-    # Tampilan Awal (Landing Page)
-    st.markdown("---")
-    st.subheader("👋 Selamat Datang di Dashboard PTP")
-    st.write("Silakan upload data pelatihan (CSV) pada menu di sebelah kiri untuk memulai analisis.")
-    st.image("https://img.freepik.com/free-vector/data-analysis-concept-illustration_114360-8023.jpg", width=400)
+                st.info
